@@ -1,36 +1,37 @@
 "use client"
- 
+
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import z from "zod"
+import {  ControllerFieldState, ControllerRenderProps, FieldValues, useForm, UseFormStateReturn } from "react-hook-form"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import axios, { AxiosError } from "axios"
 import Link from "next/link"
+import * as z from "zod"
 import { useEffect, useState } from "react"
-import { useDebounceValue } from 'usehooks-ts'
-import { useToast } from "@/hooks/use-toast"
+import { useDebounceValue, useDebounceCallback } from "usehooks-ts"
 import { useRouter } from "next/navigation"
 import { singUpSchema } from "@/schemas/signUpSchema"
-import axios, {AxiosError} from 'axios'
+import { useToast } from "@/hooks/use-toast"
 import { ApiResponse } from "@/types/ApiResponse"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Loader, Loader2 } from "lucide-react"
 
-import {Input} from "@/components/ui/input"
-import { Loader2 } from "lucide-react"
-import { useDebounceCallback } from "usehooks-ts"
+
 
 const page = () => {
 
- const[username, setUsername] = useState('')
+ const [username,setUsername] = useState('')
 
- const[usernameMessage, setusernameMessage] = useState('')
+ const[usernameMessage, setUsernameMessage] = useState('')
 
  const [isCheckingUsername, setIscheckingUsername] = useState(false)
 
- const [isSubmitting, setIsSubmitting] = useState(false)
+ const [isSubmitting,setIsSubmitting] = useState(false)
 
- const debounced = useDebounceCallback(setUsername, 300)
+ const debounced =  useDebounceCallback(setUsername,500)
 
- const { toast } = useToast()
+ const {toast} = useToast()
+
  const router = useRouter()
 
  //zod implementation
@@ -38,69 +39,71 @@ const page = () => {
  const form = useForm<z.infer<typeof singUpSchema>>({
   resolver: zodResolver(singUpSchema),
   defaultValues: {
-   username: "",
-   email: "",
-   password: ""
+   username: '',
+   email: '',
+   password: ''
   }
  })
 
+
  useEffect(() => {
-
-  const checkUsernameUnique = async () => {
-   if (username) {
+  const checkUsernameUnqiue = async () => {
+   if(username) {
     setIscheckingUsername(true)
-    setusernameMessage('')
+    setUsernameMessage('')
+   }
+   try {
 
-    try{
-     const response = await axios.get(`/api/check-username-unique?username=${username}`)
+    const response = await axios.get(`/api/check-username-unique?username=${username}`)
 
-     setusernameMessage(response.data.message)
+    setUsernameMessage(response.data.Message)
 
-    } catch (error) {
-     const axiosError = error as AxiosError<ApiResponse>
-     setusernameMessage(axiosError.response?.data.message ?? "Error checking username")
+    
+   } catch (error) {
+    const axiosError = error as AxiosError<ApiResponse>
+    setUsernameMessage(axiosError.response?.data.message ?? "Error checking username")
+    
+   } finally {
 
-    } finally {
-     setIscheckingUsername(false)
-    }
+    setIscheckingUsername(false)
+
    }
   }
 
-checkUsernameUnique()
+  checkUsernameUnqiue()
 
- }, [username])
+ }, [username]
+)
 
- const onSubmit = async (data: z.infer<typeof singUpSchema>) => {
+const onSubmit = async (data: z.infer<typeof singUpSchema>) => {
 
-  setIsSubmitting(true) 
+ setIsSubmitting(true)
 
-  try {
-   const response =  await axios.post<ApiResponse>('api/sign-up', data)
+ try {
+  const response = await axios.post<ApiResponse>('/api/sign-up', data)
+  toast({
+   title: 'Success',
+   description: response.data.message
+  })
 
-   toast({
-    title: "Success",
-    description: response.data.message
-   })
+  router.replace(`/verify/${username}`)
 
-   router.replace(`/verify/${username}`)
+  setIsSubmitting(false)
+  
+ } catch (error) {
+  console.error("error in signup of user", error)
+  const axiosError = error as AxiosError<ApiResponse>
+  let errorMessage = axiosError.response?.data.message
+  toast({
+   title: "Signup",
+   description: errorMessage,
+   variant: "destructive"
+  })
 
-   setIsSubmitting(false)
-   
-  } catch (error) {
-   console.error("Error is signup of user", error)
-   const axiosError = error as AxiosError<ApiResponse>;
-   let errorMessage = axiosError.response?.data.message
-   toast({
-    title: "Signup Error",
-    description: errorMessage,
-    variant: "destructive"
-   })
-
-   setIsSubmitting(false)
-
-
+  setIsSubmitting(false)
  }
 
+}
 
  return (
   <div className="flex justify-center items-center min-h-screen bg-gray-100">
@@ -111,51 +114,63 @@ checkUsernameUnique()
       </h1>
       <p className="mb-4">Sign up to join your anonymous adventure</p>
      </div>
-     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <FormField
+     <Form {...form}> 
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+      <FormField
           control={form.control}
           name="username"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Username</FormLabel>
               <FormControl>
-                <Input placeholder="username" 
-                {...field} 
-                onChange={(e) => {
-                 field.onChange(e)
+                <Input placeholder="username" {...field} onChange={(e) => {
                  debounced(e.target.value)
-                }}
-                />
+                }} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-          <FormField
+         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Username</FormLabel>
+              <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="username" 
-                {...field}
-                />
+                <Input placeholder="email" {...field}/>
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        
 
-        
+         <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="password" {...field}/>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-        <Button disabled={isSubmitting} type="submit">{isSubmitting ? (<><Loader2 className="mr-w h-4 w-4 animated-spin"/></>) : ('signup')}</Button>
+        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? (<><Loader2 className="mr-w h-4 w-4 animated-spin"/></>) : ('signup')}
+         </Button>
+      
+
       </form>
-    </Form>
+       </Form>
     </div>
     <p>Already a member? {' '} <Link href="/sign-in" className="Text-Blue-600 hover:text-blue-800">Sign in</Link></p>
     </div>
- )}
+ )
+}
+
+export default page
